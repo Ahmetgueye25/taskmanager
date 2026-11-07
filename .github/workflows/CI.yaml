@@ -1,0 +1,68 @@
+
+name: CI de taskmanager
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  task:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: récupérer le code
+        uses: actions/checkout@v4
+
+      - name: installer python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: installer les dépendances
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: exécuter les tests avec pytest
+        run: pytest
+
+      # Configuration Docker
+      - name: configurer Docker Buildx
+        if: github.event_name == 'push'
+        uses: docker/setup-buildx-action@v3
+
+      # Connexion à GHCR
+      - name: connexion à GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Génération des tags
+      - name: générer les tags
+        if: github.event_name == 'push'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long,prefix=sha-
+
+      # Construction et publication
+      - name: construire et publier l'image Docker
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
