@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Récupération du code
+      # 1. Récupération du code
       - name: récupérer le code
         uses: actions/checkout@v4
 
-      # Installation de Python avec cache pip
+      # 2. Installation de Python et configuration du cache
       - name: installer python
         uses: actions/setup-python@v5
         with:
@@ -28,20 +28,25 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements.txt
 
-      # Installation des dépendances
+      # 3. Installation des dépendances
       - name: installer les dépendances
         run: pip install -r requirements.txt
 
-      # Exécution des tests
+      # 4. Exécution des tests
       - name: exécuter les tests avec pytest
         run: python -m pytest
 
-      # Configuration de Docker Buildx
+      # 5. Configuration QEMU pour le multiarchitecture
+      - name: configurer QEMU
+        if: github.event_name == 'push'
+        uses: docker/setup-qemu-action@v3
+
+      # 6. Configuration Docker Buildx
       - name: configurer Docker Buildx
         if: github.event_name == 'push'
         uses: docker/setup-buildx-action@v3
 
-      # Connexion à GHCR
+      # 7. Connexion à GHCR
       - name: connexion à GHCR
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -50,7 +55,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Génération des tags
+      # 8. Génération des tags
       - name: générer les tags
         if: github.event_name == 'push'
         id: meta
@@ -61,12 +66,13 @@ jobs:
             type=raw,value=latest
             type=sha,format=long,prefix=sha-
 
-      # Construction et publication de l'image
+      # 9. Construction et publication multiarchitecture
       - name: construire et publier l'image Docker
         if: github.event_name == 'push'
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
