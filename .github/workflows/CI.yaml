@@ -34,7 +34,7 @@ jobs:
 
       # Exécution des tests
       - name: exécuter les tests avec pytest
-        run: pytest
+        run: python -m pytest
 
       # Configuration de Docker Buildx
       - name: configurer Docker Buildx
